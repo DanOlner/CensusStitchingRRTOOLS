@@ -2,8 +2,10 @@ Package: CensusStitchingRRTOOLS
 Title: Harmonise UK Census data across geographies and table categories to make time/table-consistent data.
 Version: 0.0.0.9000
 Authors@R: person("Dan", "Olner", email = "danolner@gmail.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+Description: Harmonise UK Census data across geographies and table categories to make time/table-consistent data.
 Depends: R (>= 3.4.2)
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
+URL: https://github.com/DanOlner/CensusStitchingRRTOOLS
+BugReports: https://github.com/DanOlner/CensusStitchingRRTOOLS/issues
