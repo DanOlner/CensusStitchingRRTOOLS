@@ -9,3 +9,4 @@ Encoding: UTF-8
 LazyData: true
 URL: https://github.com/DanOlner/CensusStitchingRRTOOLS
 BugReports: https://github.com/DanOlner/CensusStitchingRRTOOLS/issues
+Imports: bookdown
