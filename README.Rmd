@@ -12,7 +12,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# CensusStitchingRRTOOLS
+# Harmonisr
 
 This repository contains the data and code for our paper:
 
