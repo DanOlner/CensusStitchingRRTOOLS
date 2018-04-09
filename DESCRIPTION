@@ -9,4 +9,11 @@ Encoding: UTF-8
 LazyData: true
 URL: https://github.com/DanOlner/harmonisr
 BugReports: https://github.com/DanOlner/harmonisr/issues
-Imports: bookdown
+Imports: bookdown,
+    assertthat (>= 0.1),
+    devtools (>= 1.13.5),
+    dplyr (>= 0.7.4),
+    git2r (>= 0.21.0),
+    knitr (>= 1.20),
+    readr (>= 1.1.1),
+    tidyr (>= 0.7.2)
