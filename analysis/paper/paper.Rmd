@@ -1,8 +1,7 @@
 ---
-title: "Title Goes Here"
+title: "Harmonising Country of Birth Data from Great Britain Census 1971 to 2011"
 author:
-  - Author One
-  - Author Two
+  - Dan Olner
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: 
     bookdown::html_document2:
@@ -31,22 +30,193 @@ knitr::opts_chunk$set(
   fig.path = "../figures/"
 )
 
-library(CensusStitchingRRTOOLS) # Or use devtools::load_all('.', quiet = T) if your code is in script files, rather than as functions in the `/R` diretory
+#library(CensusStitchingRRTOOLS) # Or use devtools::load_all('.', quiet = T) if your code is in script files, rather than as functions in the `/R` diretory
 ```
 
 # Introduction
 
-Here is a citation [@Marwick2017]
+UK Census data contains a rich breakdown of people's country of birth, accessible online back to 1971. However, the way these countries are categories is never the same between Censuses.
 
-# Background
+This project had two aims: to harmonise country of birth across Censuses to make them comparable, and also to harmonise their geographical unit. This was done to support a project funded by the Urban Big Data Centre examining migration change over time in Great Britain and Scotland.
 
-```{r demo, eval = FALSE}
-1 + 1
+Because of this, the project also contains a number of methods for taking this data and creating regression-ready dataframes collated from various different sources, as well as methods for outputing a range of different regressions.
+
+**The resulting dataset is freely available from xxxx under a yyy license.** 
+
+This paper explains the processes used to create this dataset, going into some depth explaining the intricacies of differences in the Census, both over time and between Scotland and the rest of Great Britain.
+
+Two things - 
+
+Aiming for a set of tools that can be used to harmonise other sources of spatial data in the same way. Functions included here are currently specific to this project but will hopefully be generalised.
+
+Think particularly about spatial harmonisation and suggest a new approach: **build the uncertainty in to the analysis** rather than attempting to bypass it. That's not to say uncertainty shouldn't be minimised but... 
+
+The document looks at the following - first outlining what the issue is, then giving/explaining the code used to process each of the elements. These are:
+
+* Explanation of the various data sources and code for the processing steps.
+* Why Country of Birth imposes a particular spatial scale and why that meant creating a slightly tweaked version of existing boundaries.
+
+
+
+
+
+
+# Harmonising country of birth columns across Census decades
+
+
+
+```{r}
+library(dplyr)
+#Which won't work when running RMarkdown so need to do something else / load package.
+source("R/Function_bulkColumnRecode.R")
+
+
+
 ```
+
+
+
+
+
+
+```{r}
+source("Function_CoBRegressionFunctions.R")
+require(dplyr)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#HARMONISE GB COB DECADES INTO THE SAME CATEGORIES----
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#Load em and look
+gb91 <- read_csv('1991/GreatBritain/1991_GreatBritain_LBS_CoB_Ward_n_PCS_countyNamesAdded.csv')
+gb01 <- read_csv('2001/GreatBritain/2001_GreatBritain_CoB_OA_countyNamesAdded.csv')
+gb11 <- read_csv('2011/GreatBritain/2011_GreatBritain_CoB_OA_countyNamesAdded.csv')
+
+#Are names roughly the same format? Yup.
+lapply(list(gb91,gb01,gb11),names)
+
+#Save that to stick in spreadsheet and remove as we combine
+chk <- data.frame(gb91 = names(gb91),gb01 = c(names(gb01),rep('-',23)),gb11 = c(names(gb11),rep('-',47)))
+
+write_csv(chk,'R_data/bits/3census_gb_removes.csv')
+
+#A couple of 91 countries need their names changing to make sure they match with the other two
+names(gb91)[grepl('United States',names(gb91))] <- 'United States'
+names(gb91)[grepl('China',names(gb91))] <- 'China'
+
+#Code from scots 3 census stitch...
+foundMatches <- list()
+#List grows one at a time...
+j = 1
+
+#cycle through all names in 91LBS (has the most categories)
+for (i in 3:ncol(gb91)) {
+
+  #Ignore these matches
+  #"other" will vary across years and need checking
+  #ignorz <- c("Channel.Islands","Isle.of.Man","other")
+  #Actually, just going to remove them manually
+
+  two001 <- which(grepl(names(gb91)[i],names(gb01), ignore.case = T))
+  two011 <- which(grepl(names(gb91)[i],names(gb11), ignore.case = T))
+
+  #print(length(two011))
+
+  #need matches for both
+  if(length(two011) != 0 & length(two001) != 0) {
+
+    foundMatches[[j]] <- list(names(gb91)[i],i,two001,two011)
+
+    j <- j + 1
+
+  }
+
+}
+
+#check what that looks like
+for(i in 1:length(foundMatches)){
+
+  print(paste(i,foundMatches[i][[1]][1],
+              foundMatches[i][[1]][2],
+              foundMatches[i][[1]][3],
+              foundMatches[i][[1]][4],
+              sep = " "))
+
+}
+
+#remove channel islands/Isle of man
+#And other middle east
+#And other Europe
+#And South America.
+#AND Caribbean... ARGH
+#All done in the recode below
+foundMatches <- foundMatches[-c(5,6,21,24,25,27)]
+
+
+#Passing everything in to function to make sure names across everything remains consistent
+#The second list: indexes columns to keep from the dataframes to re-attach after re-coding
+#All others: common variable name and, for each dataframe, columns to sum
+#(or just a single column)
+#Add in 91 SAS
+threeCensusCombo <- list(
+  list(gb91,gb01,gb11),#all data to sum columns on
+  list('1,2','1','1'),#columns to keep from those
+  list('Channel Islands Isle of Man','8:9','9','31'),
+  list('UK part not specified','7','6','32'),
+  list('Irish Republic','10,11','7,8','6'),#Ireland part not specified is already added in 2011, so do the same for 91/01
+  list('South Africa','77','40','17'),#didn't get from single name search cos it's "afria" in '91, search missed it
+  list('Africa other','16:19,21:23,25,78,44:45','34,36:37,39,42','36:37'),#excludes North Africa due to '11 scots eng mismatch
+  list('Caribbean','26:33,80','62:63','43'),
+  list('South America','81:82','66','28:29'),
+  list('Other Middle East','84:85','45:46','38'),
+  #list('Other Eastern Asia','88:90','49:52','40'),No, has to go in rest-of-world
+  #list('Other South East Asia','86,89:90','58',''),#newp, will have to be rest of world! No S.E Asia in 01
+  list('Other EU member states (non-accession)','47:48,51,53:55,58,61,66','10:13,16,18:20,22','33'),
+  list('Other Europe','41:43,57,59:60,62:63,67:69,71','23:25,29:32,43','11,34:35'),#includes a mix of accession countries and other, as well as USSR
+  list('Rest of world','13:14,37,39:40,46,72:76,86,88:92','33,49:54,58:60,64,67:69','25:26,39:42,44:45')#North Africa has to go here due to 2011 mismatch in Eng/Scot. South-East Asia has to go here too. 'Other Asia' 91 is fine here too, see 91 defs.
+)
+
+#Add automatically found results
+threeCensusCombo <- c(threeCensusCombo,foundMatches)
+
+#Then work out what's left.
+#check what that looks like
+for(i in 3:length(threeCensusCombo)){
+
+  print(paste(i,threeCensusCombo[i][[1]][1],
+              threeCensusCombo[i][[1]][2],
+              threeCensusCombo[i][[1]][3],
+              threeCensusCombo[i][[1]][4],
+              sep = " "))
+
+}
+
+#Returns list of re-coded dataframes
+#"Error: column_recode_lists_are_all_correct_length not equal to TRUE"
+#Means lists defining recodes aren't all of a length that recodes in each dataframe
+results <- recode(threeCensusCombo)
+
+looksee <- results[[3]]
+
+#Save as five dataframes, ready for geog re-assigning (apart from '91 which is correct already)
+savens <- c('91LBS_PCS','01_OA','11_OA')
+
+lapply(1:length(savens),function(x) write.csv(results[[x]],
+                                              paste0("VariableCoding/GreatBritain/CountryOfBirth_threeCensusRecodes_to91LBS/",savens[x],".csv"),
+                                              row.names = F))
+
+```
+
+
+
+<!--
+Original sections.
+# Background
 
 # Methods
 
 # Results
+-->
 
 ```{r get-data, eval = FALSE}
 # Note the path that we need to use to access our data files when rendering this document
