@@ -16,4 +16,6 @@ Imports: bookdown,
     git2r (>= 0.21.0),
     knitr (>= 1.20),
     readr (>= 1.1.1),
-    tidyr (>= 0.7.2)
+    tidyr (>= 0.7.2),
+    magrittr (>= 1.5)
+RoxygenNote: 6.0.1

@@ -22,10 +22,10 @@ highlights: |
 
 ```{r, setup, echo = FALSE}
 knitr::opts_chunk$set(
-  collapse = TRUE,
+  collapse = FALSE,#collapse into single output chunk
   warning = FALSE,
   message = FALSE,
-  echo = FALSE,
+  echo = TRUE,
   comment = "#>",
   fig.path = "../figures/"
 )
@@ -63,48 +63,33 @@ The document looks at the following - first outlining what the issue is, then gi
 
 # Harmonising country of birth columns across Census decades
 
-
-
 ```{r}
-library(dplyr)
-#Which won't work when running RMarkdown so need to do something else / load package.
-source("R/Function_bulkColumnRecode.R")
-
-
+#devtools::install_github("danolner/harmonisr")
 
 ```
 
 
 
-
-
-
 ```{r}
-source("Function_CoBRegressionFunctions.R")
-require(dplyr)
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #HARMONISE GB COB DECADES INTO THE SAME CATEGORIES----
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #Load em and look
-gb91 <- read_csv('1991/GreatBritain/1991_GreatBritain_LBS_CoB_Ward_n_PCS_countyNamesAdded.csv')
-gb01 <- read_csv('2001/GreatBritain/2001_GreatBritain_CoB_OA_countyNamesAdded.csv')
-gb11 <- read_csv('2011/GreatBritain/2011_GreatBritain_CoB_OA_countyNamesAdded.csv')
+gb91 <- readr::read_csv('../data/raw_data/countryofbirth/gb/1991_GreatBritain_LBS_CoB_Ward_n_PCS_countyNamesAdded.csv')
+gb01 <- readr::read_csv('../data/raw_data/countryofbirth/gb/2001_GreatBritain_CoB_OA_countyNamesAdded.csv')
+gb11 <- readr::read_csv('../data/raw_data/countryofbirth/gb/2011_GreatBritain_CoB_OA_countyNamesAdded.csv')
 
-#Are names roughly the same format? Yup.
-lapply(list(gb91,gb01,gb11),names)
-
-#Save that to stick in spreadsheet and remove as we combine
-chk <- data.frame(gb91 = names(gb91),gb01 = c(names(gb01),rep('-',23)),gb11 = c(names(gb11),rep('-',47)))
-
-write_csv(chk,'R_data/bits/3census_gb_removes.csv')
+#Test versions, dir is root
+# gb91 <- read_csv('analysis/data/raw_data/countryofbirth/gb/1991_GreatBritain_LBS_CoB_Ward_n_PCS_countyNamesAdded.csv')
+# gb01 <- read_csv('analysis/data/raw_data/countryofbirth/gb/2001_GreatBritain_CoB_OA_countyNamesAdded.csv')
+# gb11 <- read_csv('analysis/data/raw_data/countryofbirth/gb/2011_GreatBritain_CoB_OA_countyNamesAdded.csv')
 
 #A couple of 91 countries need their names changing to make sure they match with the other two
 names(gb91)[grepl('United States',names(gb91))] <- 'United States'
 names(gb91)[grepl('China',names(gb91))] <- 'China'
 
-#Code from scots 3 census stitch...
+#Get a list of country names that already match
 foundMatches <- list()
 #List grows one at a time...
 j = 1
@@ -112,15 +97,8 @@ j = 1
 #cycle through all names in 91LBS (has the most categories)
 for (i in 3:ncol(gb91)) {
 
-  #Ignore these matches
-  #"other" will vary across years and need checking
-  #ignorz <- c("Channel.Islands","Isle.of.Man","other")
-  #Actually, just going to remove them manually
-
   two001 <- which(grepl(names(gb91)[i],names(gb01), ignore.case = T))
   two011 <- which(grepl(names(gb91)[i],names(gb11), ignore.case = T))
-
-  #print(length(two011))
 
   #need matches for both
   if(length(two011) != 0 & length(two001) != 0) {
@@ -148,7 +126,7 @@ for(i in 1:length(foundMatches)){
 #And other middle east
 #And other Europe
 #And South America.
-#AND Caribbean... ARGH
+#AND Caribbean...
 #All done in the recode below
 foundMatches <- foundMatches[-c(5,6,21,24,25,27)]
 
@@ -157,7 +135,6 @@ foundMatches <- foundMatches[-c(5,6,21,24,25,27)]
 #The second list: indexes columns to keep from the dataframes to re-attach after re-coding
 #All others: common variable name and, for each dataframe, columns to sum
 #(or just a single column)
-#Add in 91 SAS
 threeCensusCombo <- list(
   list(gb91,gb01,gb11),#all data to sum columns on
   list('1,2','1','1'),#columns to keep from those
@@ -194,16 +171,15 @@ for(i in 3:length(threeCensusCombo)){
 #Returns list of re-coded dataframes
 #"Error: column_recode_lists_are_all_correct_length not equal to TRUE"
 #Means lists defining recodes aren't all of a length that recodes in each dataframe
-results <- recode(threeCensusCombo)
-
-looksee <- results[[3]]
+results <- harmonisr::recode(threeCensusCombo)
 
 #Save as five dataframes, ready for geog re-assigning (apart from '91 which is correct already)
-savens <- c('91LBS_PCS','01_OA','11_OA')
+savenames <- c('91LBS_PCS','01_OA','11_OA')
 
-lapply(1:length(savens),function(x) write.csv(results[[x]],
-                                              paste0("VariableCoding/GreatBritain/CountryOfBirth_threeCensusRecodes_to91LBS/",savens[x],".csv"),
-                                              row.names = F))
+#lapply(1:length(savenames),function(x) write.csv(results[[x]],                                              paste0("../data/derived_data/GreatBritain/CountryOfBirth_threeCensusRecodes_to91LBS/",savenames[x],".csv"),row.names = F))
+
+#Test version
+#lapply(1:length(savenames),function(x) write.csv(results[[x]],                                              paste0("analysis/data/derived_data/GreatBritain/CountryOfBirth_threeCensusRecodes_to91LBS/",savenames[x],".csv"),row.names = F))
 
 ```
 
